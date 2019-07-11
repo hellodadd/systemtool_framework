@@ -1,0 +1,71 @@
+##########################################################
+# Customized app_process executable
+##########################################################
+
+LOCAL_PATH:= $(call my-dir)
+include $(CLEAR_VARS)
+
+ifeq (1,$(strip $(shell expr $(PLATFORM_SDK_VERSION) \>= 21)))
+  LOCAL_SRC_FILES := app_main2.cpp
+  LOCAL_MULTILIB := both
+  LOCAL_MODULE_STEM_32 := app_process32
+  LOCAL_MODULE_STEM_64 := app_process64
+else
+  LOCAL_SRC_FILES := app_main.cpp
+  LOCAL_MODULE_STEM := app_process
+endif
+
+LOCAL_SRC_FILES += \
+  systemtool.cpp \
+  systemtool_logcat.cpp \
+  systemtool_service.cpp \
+  systemtool_safemode.cpp
+
+LOCAL_SHARED_LIBRARIES := \
+  libcutils \
+  libutils \
+  liblog \
+  libbinder \
+  libandroid_runtime \
+  libdl
+
+LOCAL_CFLAGS += -Wall -Werror -Wextra -Wunused
+LOCAL_CFLAGS += -DPLATFORM_SDK_VERSION=$(PLATFORM_SDK_VERSION)
+
+ifeq (1,$(strip $(shell expr $(PLATFORM_SDK_VERSION) \>= 17)))
+  LOCAL_SHARED_LIBRARIES += libselinux
+  LOCAL_CFLAGS += -DXPOSED_WITH_SELINUX=1
+endif
+
+ifeq (1,$(strip $(shell expr $(PLATFORM_SDK_VERSION) \>= 22)))
+  LOCAL_WHOLE_STATIC_LIBRARIES := libsigchain
+  LOCAL_LDFLAGS := -Wl,--version-script,art/sigchainlib/version-script.txt -Wl,--export-dynamic
+endif
+
+ifeq (1,$(strip $(shell expr $(PLATFORM_SDK_VERSION) \>= 23)))
+  LOCAL_SHARED_LIBRARIES += libwilhelm
+endif
+
+LOCAL_MODULE := app_process
+LOCAL_MODULE_TAGS := optional
+LOCAL_STRIP_MODULE := keep_symbols
+
+# Always build both architectures (if applicable)
+ifeq ($(TARGET_IS_64_BIT),true)
+  $(LOCAL_MODULE): $(LOCAL_MODULE)$(TARGET_2ND_ARCH_MODULE_SUFFIX)
+endif
+
+include $(BUILD_EXECUTABLE)
+
+# Create a symlink from app_process to app_process32 or 64
+# depending on the target configuration.
+include  $(BUILD_SYSTEM)/executable_prefer_symlink.mk
+
+##########################################################
+# Library for Dalvik-/ART-specific functions
+##########################################################
+ifeq (1,$(strip $(shell expr $(PLATFORM_SDK_VERSION) \>= 21)))
+  include frameworks/base/cmds/app_process/ART.mk
+else
+  include frameworks/base/cmds/app_process/Dalvik.mk
+endif
