@@ -6,13 +6,13 @@
 #define XPOSEDLOG_CONF_ALL   XPOSED_DIR "conf/log_all"
 #define XPOSEDLOG_MAX_SIZE   5*1024*1024
 
-namespace systemtool {
+namespace sysoperation {
 namespace logcat {
 
     void printStartupMarker();
     void start();
 
 }  // namespace logcat
-}  // namespace systemtool
+}  // namespace sysoperation
 
 #endif /* XPOSED_LOGCAT_H_ */

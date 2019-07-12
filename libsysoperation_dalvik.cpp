@@ -2,14 +2,14 @@
  * This file includes functions specific to the Dalvik runtime.
  */
 
-#define LOG_TAG "SystemTool"
+#define LOG_TAG "SysOperation"
 
-#include "libsystemtool_dalvik.h"
-#include "systemtool_offsets.h"
+#include "libsysoperation_dalvik.h"
+#include "sysoperation_offsets.h"
 
 #include <dlfcn.h>
 
-namespace systemtool {
+namespace sysoperation {
 
 ////////////////////////////////////////////////////////////
 // Forward declarations
@@ -17,7 +17,7 @@ namespace systemtool {
 
 bool initMemberOffsets(JNIEnv* env);
 void hookedMethodCallback(const u4* args, JValue* pResult, const Method* method, ::Thread* self);
-void SystemToolBridge_invOriMethodNative(const u4* args, JValue* pResult, const Method* method, ::Thread* self);
+void SysOperationBridge_invOriMethodNative(const u4* args, JValue* pResult, const Method* method, ::Thread* self);
 
 
 ////////////////////////////////////////////////////////////
@@ -33,10 +33,10 @@ static void* PTR_gDvmJit = NULL;
 // Library initialization
 ////////////////////////////////////////////////////////////
 
-/** Called by SystemTool's app_process replacement. */
-bool systemtoolInitLib(systemtool::SystemToolShared* shared) {
-    systemtool = shared;
-    systemtool->onVmCreated = &onVmCreatedCommon;
+/** Called by SysOperation's app_process replacement. */
+bool sysoperationInitLib(sysoperation::SysOperationShared* shared) {
+    sysoperation = shared;
+    sysoperation->onVmCreated = &onVmCreatedCommon;
     return true;
 }
 
@@ -55,15 +55,15 @@ bool onVmCreated(JNIEnv* env) {
     }
     env->ExceptionClear();
 
-    Method* systemtoolInvokeOriginalMethodNative = (Method*) env->GetStaticMethodID(classSystemToolBridge, "invOriMethodNative",
+    Method* sysoperationInvokeOriginalMethodNative = (Method*) env->GetStaticMethodID(classSysOperationBridge, "invOriMethodNative",
         "(Ljava/lang/reflect/Member;I[Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;");
-    if (systemtoolInvokeOriginalMethodNative == NULL) {
+    if (sysoperationInvokeOriginalMethodNative == NULL) {
         ALOGE("ERROR: could not find method %s.invOriMethodNative(Member, int, Class[], Class, Object, Object[])", CLASS_XPOSED_BRIDGE);
         dvmLogExceptionStackTrace();
         env->ExceptionClear();
         return false;
     }
-    dvmSetNativeFunc(systemtoolInvokeOriginalMethodNative, SystemToolBridge_invOriMethodNative, NULL);
+    dvmSetNativeFunc(sysoperationInvokeOriginalMethodNative, SysOperationBridge_invOriMethodNative, NULL);
 
     objectArrayClass = dvmFindArrayClass("[Ljava/lang/Object;", NULL);
     if (objectArrayClass == NULL) {
@@ -84,7 +84,7 @@ bool initMemberOffsets(JNIEnv* env) {
     } else {
         offsetMode = MEMBER_OFFSET_MODE_WITH_JIT;
     }
-    ALOGD("Using structure member offsets for mode %s", systemtoolOffsetModesDesc[offsetMode]);
+    ALOGD("Using structure member offsets for mode %s", sysoperationOffsetModesDesc[offsetMode]);
 
     MEMBER_OFFSET_COPY(DvmJitGlobals, codeCacheFull);
 
@@ -145,11 +145,11 @@ inline bool isMethodHooked(const Method* method) {
 /** This is called when a hooked method is executed. */
 void hookedMethodCallback(const u4* args, JValue* pResult, const Method* method, ::Thread* self) {
     if (!isMethodHooked(method)) {
-        dvmThrowNoSuchMethodError("Could not find SystemTool original method - how did you even get here?");
+        dvmThrowNoSuchMethodError("Could not find SysOperation original method - how did you even get here?");
         return;
     }
 
-    SystemToolHookInfo* hookInfo = (SystemToolHookInfo*) method->insns;
+    SysOperationHookInfo* hookInfo = (SysOperationHookInfo*) method->insns;
     Method* original = (Method*) hookInfo;
     Object* originalReflected = hookInfo->reflectedMethod;
     Object* additionalInfo = hookInfo->additionalInfo;
@@ -208,7 +208,7 @@ void hookedMethodCallback(const u4* args, JValue* pResult, const Method* method,
 
     // call the Java handler function
     JValue result;
-    dvmCallMethod(self, (Method*) methodSystemToolBridgeHandleHkedMethod, NULL, &result,
+    dvmCallMethod(self, (Method*) methodSysOperationBridgeHandleHkedMethod, NULL, &result,
         originalReflected, (int) original, additionalInfo, thisObject, argsArray);
 
     dvmReleaseTrackedAlloc(argsArray, self);
@@ -235,7 +235,7 @@ void hookedMethodCallback(const u4* args, JValue* pResult, const Method* method,
 }
 
 
-void SystemToolBridge_hkMethodNative(JNIEnv* env, jclass clazz, jobject reflectedMethodIndirect,
+void SysOperationBridge_hkMethodNative(JNIEnv* env, jclass clazz, jobject reflectedMethodIndirect,
             jobject declaredClassIndirect, jint slot, jobject additionalInfoIndirect) {
     // Usage errors?
     if (declaredClassIndirect == NULL || reflectedMethodIndirect == NULL) {
@@ -257,7 +257,7 @@ void SystemToolBridge_hkMethodNative(JNIEnv* env, jclass clazz, jobject reflecte
     }
 
     // Save a copy of the original method and other hook info
-    SystemToolHookInfo* hookInfo = (SystemToolHookInfo*) calloc(1, sizeof(SystemToolHookInfo));
+    SysOperationHookInfo* hookInfo = (SysOperationHookInfo*) calloc(1, sizeof(SysOperationHookInfo));
     memcpy(hookInfo, method, sizeof(hookInfo->originalMethodStruct));
     hookInfo->reflectedMethod = dvmDecodeIndirectRef(dvmThreadSelf(), env->NewGlobalRef(reflectedMethodIndirect));
     hookInfo->additionalInfo = dvmDecodeIndirectRef(dvmThreadSelf(), env->NewGlobalRef(additionalInfoIndirect));
@@ -285,7 +285,7 @@ void SystemToolBridge_hkMethodNative(JNIEnv* env, jclass clazz, jobject reflecte
  * Simplified copy of Method.invokeNative(), but calls the original (non-hooked) method
  * and has no access checks. Used to call the real implementation of hooked methods.
  */
-void SystemToolBridge_invOriMethodNative(const u4* args, JValue* pResult,
+void SysOperationBridge_invOriMethodNative(const u4* args, JValue* pResult,
             const Method* method, ::Thread* self) {
     Method* meth = (Method*) args[1];
     if (meth == NULL) {
@@ -304,7 +304,7 @@ void SystemToolBridge_invOriMethodNative(const u4* args, JValue* pResult,
     return;
 }
 
-void SystemToolBridge_setObjectClassNative(JNIEnv* env, jclass clazz, jobject objIndirect, jclass clzIndirect) {
+void SysOperationBridge_setObjectClassNative(JNIEnv* env, jclass clazz, jobject objIndirect, jclass clzIndirect) {
     Object* obj = (Object*) dvmDecodeIndirectRef(dvmThreadSelf(), objIndirect);
     ClassObject* clz = (ClassObject*) dvmDecodeIndirectRef(dvmThreadSelf(), clzIndirect);
     if (clz->status < CLASS_INITIALIZED && !dvmInitClass(clz)) {
@@ -314,12 +314,12 @@ void SystemToolBridge_setObjectClassNative(JNIEnv* env, jclass clazz, jobject ob
     obj->clazz = clz;
 }
 
-void SystemToolBridge_dumpObjectNative(JNIEnv* env, jclass clazz, jobject objIndirect) {
+void SysOperationBridge_dumpObjectNative(JNIEnv* env, jclass clazz, jobject objIndirect) {
     Object* obj = (Object*) dvmDecodeIndirectRef(dvmThreadSelf(), objIndirect);
     dvmDumpObject(obj);
 }
 
-jobject SystemToolBridge_cloneToSubclassNative(JNIEnv* env, jclass clazz, jobject objIndirect, jclass clzIndirect) {
+jobject SysOperationBridge_cloneToSubclassNative(JNIEnv* env, jclass clazz, jobject objIndirect, jclass clzIndirect) {
     Object* obj = (Object*) dvmDecodeIndirectRef(dvmThreadSelf(), objIndirect);
     ClassObject* clz = (ClassObject*) dvmDecodeIndirectRef(dvmThreadSelf(), clzIndirect);
 
@@ -338,14 +338,14 @@ jobject SystemToolBridge_cloneToSubclassNative(JNIEnv* env, jclass clazz, jobjec
     return copyIndirect;
 }
 
-void SystemToolBridge_removeFinalFlagNative(JNIEnv* env, jclass, jclass javaClazz) {
+void SysOperationBridge_removeFinalFlagNative(JNIEnv* env, jclass, jclass javaClazz) {
     ClassObject* clazz = (ClassObject*) dvmDecodeIndirectRef(dvmThreadSelf(), javaClazz);
     if (dvmIsFinalClass(clazz)) {
         clazz->accessFlags &= ~ACC_FINAL;
     }
 }
 
-jint SystemToolBridge_getRuntime(JNIEnv* env, jclass clazz) {
+jint SysOperationBridge_getRuntime(JNIEnv* env, jclass clazz) {
     return 1; // RUNTIME_DALVIK
 }
 

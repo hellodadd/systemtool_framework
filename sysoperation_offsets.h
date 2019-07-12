@@ -20,12 +20,12 @@
 
 
 // here are the definitions of the modes and offsets
-enum systemtoolOffsetModes {
+enum sysoperationOffsetModes {
     MEMBER_OFFSET_MODE_WITH_JIT,
     MEMBER_OFFSET_MODE_NO_JIT,
 };
-static systemtoolOffsetModes offsetMode;
-const char* systemtoolOffsetModesDesc[] = {
+static sysoperationOffsetModes offsetMode;
+const char* sysoperationOffsetModesDesc[] = {
     "WITH_JIT",
     "NO_JIT",
 };

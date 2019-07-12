@@ -4,13 +4,13 @@
 #define ANDROID_SMP 1
 #include "Dalvik.h"
 
-#include "libsystemtool_common.h"
+#include "libsysoperation_common.h"
 
-namespace systemtool {
+namespace sysoperation {
 
 #define XPOSED_OVERRIDE_JIT_RESET_OFFSET XPOSED_DIR "conf/jit_reset_offset"
 
-struct SystemToolHookInfo {
+struct SysOperationHookInfo {
     struct {
         Method originalMethod;
         // copy a few bytes more than defined for Method in AOSP
@@ -22,6 +22,6 @@ struct SystemToolHookInfo {
     Object* additionalInfo;
 };
 
-}  // namespace systemtool
+}  // namespace sysoperation
 
 #endif  // LIBXPOSED_DALVIK_H_

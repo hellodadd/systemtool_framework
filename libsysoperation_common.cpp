@@ -2,9 +2,9 @@
  * This file includes functions shared by different runtimes.
  */
 
-#define LOG_TAG "SystemTool"
+#define LOG_TAG "SysOperation"
 
-#include "libsystemtool_common.h"
+#include "libsysoperation_common.h"
 #include "JNIHelp.h"
 #include <ScopedUtfChars.h>
 
@@ -16,19 +16,19 @@
 #endif
 #undef private
 
-namespace systemtool {
+namespace sysoperation {
 
 ////////////////////////////////////////////////////////////
 // Variables
 ////////////////////////////////////////////////////////////
 
-bool systemtoolLoadedSuccessfully = false;
-systemtool::SystemToolShared* systemtool = NULL;
-jclass classSystemToolBridge = NULL;
+bool sysoperationLoadedSuccessfully = false;
+sysoperation::SysOperationShared* sysoperation = NULL;
+jclass classSysOperationBridge = NULL;
 static jclass classXResources = NULL;
 static jclass classFileResult = NULL;
 
-jmethodID methodSystemToolBridgeHandleHkedMethod = NULL;
+jmethodID methodSysOperationBridgeHandleHkedMethod = NULL;
 static jmethodID methodXResourcesTranslateResId = NULL;
 static jmethodID methodXResourcesTranslateAttrId = NULL;
 static jmethodID constructorFileResult = NULL;
@@ -38,7 +38,7 @@ static jmethodID constructorFileResult = NULL;
 // Forward declarations
 ////////////////////////////////////////////////////////////
 
-static int register_natives_SystemToolBridge(JNIEnv* env, jclass clazz);
+static int register_natives_SysOperationBridge(JNIEnv* env, jclass clazz);
 static int register_natives_XResources(JNIEnv* env, jclass clazz);
 static int register_natives_ZygoteService(JNIEnv* env, jclass clazz);
 
@@ -65,27 +65,27 @@ int readIntConfig(const char* fileName, int defaultValue) {
 // Library initialization
 ////////////////////////////////////////////////////////////
 
-bool initSystemToolBridge(JNIEnv* env) {
-    classSystemToolBridge = env->FindClass(CLASS_XPOSED_BRIDGE);
-    if (classSystemToolBridge == NULL) {
-        ALOGE("Error while loading SystemTool class '%s':", CLASS_XPOSED_BRIDGE);
+bool initSysOperationBridge(JNIEnv* env) {
+    classSysOperationBridge = env->FindClass(CLASS_XPOSED_BRIDGE);
+    if (classSysOperationBridge == NULL) {
+        ALOGE("Error while loading SysOperation class '%s':", CLASS_XPOSED_BRIDGE);
         logExceptionStackTrace();
         env->ExceptionClear();
         return false;
     }
-    classSystemToolBridge = reinterpret_cast<jclass>(env->NewGlobalRef(classSystemToolBridge));
+    classSysOperationBridge = reinterpret_cast<jclass>(env->NewGlobalRef(classSysOperationBridge));
 
-    ALOGI("Found SystemTool class '%s', now initializing", CLASS_XPOSED_BRIDGE);
-    if (register_natives_SystemToolBridge(env, classSystemToolBridge) != JNI_OK) {
+    ALOGI("Found SysOperation class '%s', now initializing", CLASS_XPOSED_BRIDGE);
+    if (register_natives_SysOperationBridge(env, classSysOperationBridge) != JNI_OK) {
         ALOGE("Could not register natives for '%s'", CLASS_XPOSED_BRIDGE);
         logExceptionStackTrace();
         env->ExceptionClear();
         return false;
     }
 
-    methodSystemToolBridgeHandleHkedMethod = env->GetStaticMethodID(classSystemToolBridge, "handleHkedMethod",
+    methodSysOperationBridgeHandleHkedMethod = env->GetStaticMethodID(classSysOperationBridge, "handleHkedMethod",
         "(Ljava/lang/reflect/Member;ILjava/lang/Object;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;");
-    if (methodSystemToolBridgeHandleHkedMethod == NULL) {
+    if (methodSysOperationBridgeHandleHkedMethod == NULL) {
         ALOGE("ERROR: could not find method %s.handleHkedMethod(Member, int, Object, Object, Object[])", CLASS_XPOSED_BRIDGE);
         logExceptionStackTrace();
         env->ExceptionClear();
@@ -130,7 +130,7 @@ bool initZygoteService(JNIEnv* env) {
 }
 
 void onVmCreatedCommon(JNIEnv* env) {
-    if (!initSystemToolBridge(env) || !initZygoteService(env)) {
+    if (!initSysOperationBridge(env) || !initZygoteService(env)) {
         return;
     }
 
@@ -138,7 +138,7 @@ void onVmCreatedCommon(JNIEnv* env) {
         return;
     }
 
-    systemtoolLoadedSuccessfully = true;
+    sysoperationLoadedSuccessfully = true;
     return;
 }
 
@@ -147,23 +147,23 @@ void onVmCreatedCommon(JNIEnv* env) {
 // JNI methods
 ////////////////////////////////////////////////////////////
 
-jboolean SystemToolBridge_hadInitErrors(JNIEnv*, jclass) {
-    return !systemtoolLoadedSuccessfully;
+jboolean SysOperationBridge_hadInitErrors(JNIEnv*, jclass) {
+    return !sysoperationLoadedSuccessfully;
 }
 
-jobject SystemToolBridge_getStartClassName(JNIEnv* env, jclass) {
-    return env->NewStringUTF(systemtool->startClassName);
+jobject SysOperationBridge_getStartClassName(JNIEnv* env, jclass) {
+    return env->NewStringUTF(sysoperation->startClassName);
 }
 
-jboolean SystemToolBridge_startsSystemServer(JNIEnv*, jclass) {
-    return systemtool->startSystemServer;
+jboolean SysOperationBridge_startsSystemServer(JNIEnv*, jclass) {
+    return sysoperation->startSystemServer;
 }
 
-jint SystemToolBridge_getSystemToolVersion(JNIEnv*, jclass) {
-    return systemtool->systemtoolVersionInt;
+jint SysOperationBridge_getSysOperationVersion(JNIEnv*, jclass) {
+    return sysoperation->sysoperationVersionInt;
 }
 
-jboolean SystemToolBridge_initXSToolResourcesNative(JNIEnv* env, jclass) {
+jboolean SysOperationBridge_initXSToolResourcesNative(JNIEnv* env, jclass) {
     classXResources = env->FindClass(CLASS_XRESOURCES);
     if (classXResources == NULL) {
         ALOGE("Error while loading Resources class '%s':", CLASS_XRESOURCES);
@@ -272,7 +272,7 @@ void SToolResources_rewriteXmlReferencesNative(JNIEnv* env, jclass,
 jboolean SToolZygoteServ_checkFileAccess(JNIEnv* env, jclass, jstring filenameJ, jint mode) {
 #if XPOSED_WITH_SELINUX
     ScopedUtfChars filename(env, filenameJ);
-    return systemtool->zygoteservice_accessFile(filename.c_str(), mode) == 0;
+    return sysoperation->zygoteservice_accessFile(filename.c_str(), mode) == 0;
 #else  // XPOSED_WITH_SELINUX
     return false;
 #endif  // XPOSED_WITH_SELINUX
@@ -283,7 +283,7 @@ jobject SToolZygoteServ_statFile(JNIEnv* env, jclass, jstring filenameJ) {
     ScopedUtfChars filename(env, filenameJ);
 
     struct stat st;
-    int result = systemtool->zygoteservice_statFile(filename.c_str(), &st);
+    int result = sysoperation->zygoteservice_statFile(filename.c_str(), &st);
     if (result != 0) {
         if (errno == ENOENT) {
             jniThrowExceptionFmt(env, "java/io/FileNotFoundException", "No such file or directory: %s", filename.c_str());
@@ -304,7 +304,7 @@ jbyteArray SToolZygoteServ_readFile(JNIEnv* env, jclass, jstring filenameJ) {
     ScopedUtfChars filename(env, filenameJ);
 
     int bytesRead = 0;
-    char* content = systemtool->zygoteservice_readFile(filename.c_str(), &bytesRead);
+    char* content = sysoperation->zygoteservice_readFile(filename.c_str(), &bytesRead);
     if (content == NULL) {
         if (errno == ENOENT) {
             jniThrowExceptionFmt(env, "java/io/FileNotFoundException", "No such file or directory: %s", filename.c_str());
@@ -334,27 +334,27 @@ jbyteArray SToolZygoteServ_readFile(JNIEnv* env, jclass, jstring filenameJ) {
 // JNI methods registrations
 ////////////////////////////////////////////////////////////
 
-int register_natives_SystemToolBridge(JNIEnv* env, jclass clazz) {
+int register_natives_SysOperationBridge(JNIEnv* env, jclass clazz) {
     const JNINativeMethod methods[] = {
-        NATIVE_METHOD(SystemToolBridge, hadInitErrors, "()Z"),
-        NATIVE_METHOD(SystemToolBridge, getStartClassName, "()Ljava/lang/String;"),
-        NATIVE_METHOD(SystemToolBridge, getRuntime, "()I"),
-        NATIVE_METHOD(SystemToolBridge, startsSystemServer, "()Z"),
-        NATIVE_METHOD(SystemToolBridge, getSystemToolVersion, "()I"),
-        NATIVE_METHOD(SystemToolBridge, initXSToolResourcesNative, "()Z"),
-        NATIVE_METHOD(SystemToolBridge, hkMethodNative, "(Ljava/lang/reflect/Member;Ljava/lang/Class;ILjava/lang/Object;)V"),
-        NATIVE_METHOD(SystemToolBridge, setObjectClassNative, "(Ljava/lang/Object;Ljava/lang/Class;)V"),
-        NATIVE_METHOD(SystemToolBridge, dumpObjectNative, "(Ljava/lang/Object;)V"),
-        NATIVE_METHOD(SystemToolBridge, cloneToSubclassNative, "(Ljava/lang/Object;Ljava/lang/Class;)Ljava/lang/Object;"),
-        NATIVE_METHOD(SystemToolBridge, removeFinalFlagNative, "(Ljava/lang/Class;)V"),
+        NATIVE_METHOD(SysOperationBridge, hadInitErrors, "()Z"),
+        NATIVE_METHOD(SysOperationBridge, getStartClassName, "()Ljava/lang/String;"),
+        NATIVE_METHOD(SysOperationBridge, getRuntime, "()I"),
+        NATIVE_METHOD(SysOperationBridge, startsSystemServer, "()Z"),
+        NATIVE_METHOD(SysOperationBridge, getSysOperationVersion, "()I"),
+        NATIVE_METHOD(SysOperationBridge, initXSToolResourcesNative, "()Z"),
+        NATIVE_METHOD(SysOperationBridge, hkMethodNative, "(Ljava/lang/reflect/Member;Ljava/lang/Class;ILjava/lang/Object;)V"),
+        NATIVE_METHOD(SysOperationBridge, setObjectClassNative, "(Ljava/lang/Object;Ljava/lang/Class;)V"),
+        NATIVE_METHOD(SysOperationBridge, dumpObjectNative, "(Ljava/lang/Object;)V"),
+        NATIVE_METHOD(SysOperationBridge, cloneToSubclassNative, "(Ljava/lang/Object;Ljava/lang/Class;)Ljava/lang/Object;"),
+        NATIVE_METHOD(SysOperationBridge, removeFinalFlagNative, "(Ljava/lang/Class;)V"),
 #if PLATFORM_SDK_VERSION >= 21
-        NATIVE_METHOD(SystemToolBridge, invOriMethodNative,
+        NATIVE_METHOD(SysOperationBridge, invOriMethodNative,
             "!(Ljava/lang/reflect/Member;I[Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;"),
-        NATIVE_METHOD(SystemToolBridge, closeFileBeforeFkNative, "()V"),
-        NATIVE_METHOD(SystemToolBridge, reopenFileAfterFkNative, "()V"),
+        NATIVE_METHOD(SysOperationBridge, closeFileBeforeFkNative, "()V"),
+        NATIVE_METHOD(SysOperationBridge, reopenFileAfterFkNative, "()V"),
 #endif
 #if PLATFORM_SDK_VERSION >= 24
-        NATIVE_METHOD(SystemToolBridge, invalidateCallersNative, "([Ljava/lang/reflect/Member;)V"),
+        NATIVE_METHOD(SysOperationBridge, invalidateCallersNative, "([Ljava/lang/reflect/Member;)V"),
 #endif
     };
     return env->RegisterNatives(clazz, methods, NELEM(methods));
@@ -376,4 +376,4 @@ int register_natives_ZygoteService(JNIEnv* env, jclass clazz) {
     return env->RegisterNatives(clazz, methods, NELEM(methods));
 }
 
-}  // namespace systemtool
+}  // namespace sysoperation

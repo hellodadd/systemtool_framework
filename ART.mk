@@ -20,8 +20,8 @@ else
 endif
 
 LOCAL_SRC_FILES += \
-  libsystemtool_common.cpp \
-  libsystemtool_art.cpp
+  libsysoperation_common.cpp \
+  libsysoperation_art.cpp
 
 LOCAL_C_INCLUDES += \
   art/runtime \
@@ -42,7 +42,7 @@ LOCAL_CFLAGS += \
   -DPLATFORM_SDK_VERSION=$(PLATFORM_SDK_VERSION) \
   -DXPOSED_WITH_SELINUX=1
 
-LOCAL_MODULE := libsystemtool_art
+LOCAL_MODULE := libsysoperation_art
 LOCAL_MODULE_TAGS := optional
 LOCAL_STRIP_MODULE := keep_symbols
 LOCAL_MULTILIB := both

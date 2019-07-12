@@ -1,7 +1,7 @@
 #ifndef XPOSED_SAFEMODE_H_
 #define XPOSED_SAFEMODE_H_
 
-namespace systemtool {
+namespace sysoperation {
 
 bool detectSafemodeTrigger(bool skipInitialDelay);
 

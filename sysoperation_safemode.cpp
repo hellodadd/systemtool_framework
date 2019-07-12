@@ -18,7 +18,7 @@
  *   /include/uapi/linux/input.h (Linux)
  *   Using the Input Subsystem, Linux Journal
  */
-#include "systemtool_safemode.h"
+#include "sysoperation_safemode.h"
 
 #include <cstring>
 #include <dirent.h>
@@ -173,7 +173,7 @@ int getRemainingTime(struct timespec expiration) {
 
 
 
-namespace systemtool {
+namespace sysoperation {
 
 bool detectSafemodeTrigger(bool skipInitialDelay) {
 

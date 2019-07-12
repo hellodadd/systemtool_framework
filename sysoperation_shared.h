@@ -20,19 +20,19 @@
 #endif
 
 #if PLATFORM_SDK_VERSION >= 24
-#define XPOSED_DIR "/data/user_de/0/com.system.android.systemtool.installer/"
+#define XPOSED_DIR "/data/user_de/0/com.system.android.sysoperation.installer/"
 #else
-#define XPOSED_DIR "/data/data/com.system.android.systemtool.installer/"
+#define XPOSED_DIR "/data/data/com.system.android.sysoperation.installer/"
 #endif
 
-namespace systemtool {
+namespace sysoperation {
 
-struct SystemToolShared {
+struct SysOperationShared {
     // Global variables
     bool zygote;
     bool startSystemServer;
     const char* startClassName;
-    uint32_t systemtoolVersionInt;
+    uint32_t sysoperationVersionInt;
     bool isSELinuxEnabled;
     bool isSELinuxEnforcing;
     uid_t installer_uid;
@@ -49,8 +49,8 @@ struct SystemToolShared {
 #endif
 };
 
-extern SystemToolShared* systemtool;
+extern SysOperationShared* sysoperation;
 
-} // namespace systemtool
+} // namespace sysoperation
 
 #endif // XPOSED_SHARED_H_

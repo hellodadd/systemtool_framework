@@ -1,8 +1,8 @@
 /**
- * This file includes the SystemTool service, which is especially used to work around SELinux restrictions.
+ * This file includes the SysOperation service, which is especially used to work around SELinux restrictions.
  */
 
-#define LOG_TAG "SystemTool"
+#define LOG_TAG "SysOperation"
 
 #include <cstring>
 #include <errno.h>
@@ -11,12 +11,12 @@
 #include <sys/prctl.h>
 #include <unistd.h>
 
-#include "systemtool.h"
-#include "systemtool_service.h"
-#include "systemtool_logcat.h"
+#include "sysoperation.h"
+#include "sysoperation_service.h"
+#include "sysoperation_logcat.h"
 
 
-namespace systemtool {
+namespace sysoperation {
 namespace logcat {
 
 ////////////////////////////////////////////////////////////
@@ -34,7 +34,7 @@ char marker[50];
 
 static void execLogcat() {
     int8_t keep[] = { CAP_SYSLOG, -1 };
-    systemtool::dropCapabilities(keep);
+    sysoperation::dropCapabilities(keep);
 
     // Execute a logcat command that will keep running in the background
     if (zygote_access(XPOSEDLOG_CONF_ALL, F_OK) == 0) {
@@ -45,10 +45,10 @@ static void execLogcat() {
         execl("/system/bin/logcat", "logcat",
             "-v", "time",            // include timestamps in the log
             "-s",                    // be silent by default, except for the following tags
-            "SystemToolStartupMarker:D", // marks the beginning of the current log
-            "SystemTool:I",              // SystemTool framework and default logging
+            "SysOperationStartupMarker:D", // marks the beginning of the current log
+            "SysOperation:I",              // SysOperation framework and default logging
             "appproc:I",             // app_process
-            "SystemToolInstaller:I",     // SystemTool Installer
+            "SysOperationInstaller:I",     // SysOperation Installer
             "art:F",                 // ART crashes
             (char*) 0);
     }
@@ -74,8 +74,8 @@ static inline int dprintf(int fd, const char *format, ...) {
 #endif
 
 static void runDaemon(int pipefd) {
-    systemtool::setProcessName("systemtool_logcat");
-    systemtool::dropCapabilities();
+    sysoperation::setProcessName("sysoperation_logcat");
+    sysoperation::dropCapabilities();
 
     umask(0);
     int logfile = open(XPOSEDLOG, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
@@ -98,7 +98,7 @@ static void runDaemon(int pipefd) {
             continue; // beginning of <logbuffer type>
 
         if (!foundMarker) {
-            if (strstr(buf, "SystemToolStartupMarker") != NULL && strstr(buf, marker) != NULL) {
+            if (strstr(buf, "SysOperationStartupMarker") != NULL && strstr(buf, marker) != NULL) {
                 foundMarker = true;
             }
             continue;
@@ -121,14 +121,14 @@ static void runDaemon(int pipefd) {
 
 void printStartupMarker() {
     sprintf(marker, "Current time: %d, PID: %d", (int) time(NULL), getpid());
-    ALOG(LOG_DEBUG, "SystemToolStartupMarker", marker, NULL);
+    ALOG(LOG_DEBUG, "SysOperationStartupMarker", marker, NULL);
 }
 
 void start() {
     // Fork to create a daemon
     pid_t pid;
     if ((pid = fork()) < 0) {
-        ALOGE("Fork for SystemTool logcat daemon failed: %s", strerror(errno));
+        ALOGE("Fork for SysOperation logcat daemon failed: %s", strerror(errno));
         return;
     } else if (pid != 0) {
         return;
@@ -140,12 +140,12 @@ void start() {
     }
     const gid_t groups[] = { AID_LOG };
     setgroups(1, groups);
-    if (!systemtool::switchToSystemToolInstallerUidGid()) {
+    if (!sysoperation::switchToSysOperationInstallerUidGid()) {
         exit(EXIT_FAILURE);
     }
 
 #if XPOSED_WITH_SELINUX
-    if (systemtool->isSELinuxEnabled) {
+    if (sysoperation->isSELinuxEnabled) {
         if (setcon(ctx_app) != 0) {
             ALOGE("Could not switch to %s context", ctx_app);
             exit(EXIT_FAILURE);
@@ -190,4 +190,4 @@ void start() {
 }
 
 }  // namespace logcat
-}  // namespace systemtool
+}  // namespace sysoperation

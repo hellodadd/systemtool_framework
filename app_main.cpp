@@ -22,10 +22,10 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "systemtool.h"
+#include "sysoperation.h"
 #include <dlfcn.h>
 
-static bool isSystemToolLoaded = false;
+static bool isSysOperationLoaded = false;
 
 
 namespace android {
@@ -34,12 +34,12 @@ void app_usage()
 {
     fprintf(stderr,
         "Usage: app_process [java-options] cmd-dir start-class-name [options]\n");
-    fprintf(stderr, "   with SystemTool support\n");
+    fprintf(stderr, "   with SysOperation support\n");
 }
 
 void _atrace_set_tracing_enabled(bool enabled)
 {
-    if (systemtool::getSdkVersion() < 18)
+    if (sysoperation::getSdkVersion() < 18)
         return;
 
     dlerror(); // Clear existing errors
@@ -82,8 +82,8 @@ public:
 
     virtual void onVmCreated(JNIEnv* env)
     {
-        if (isSystemToolLoaded)
-            systemtool::onVmCreated(env);
+        if (isSysOperationLoaded)
+            sysoperation::onVmCreated(env);
 
         if (mClassName == NULL) {
             return; // Zygote. Nothing to do here.
@@ -166,7 +166,7 @@ static void setArgv0(const char *argv0, const char *newArgv0)
 
 int main(int argc, char* const argv[])
 {
-    if (systemtool::handleOptions(argc, argv))
+    if (sysoperation::handleOptions(argc, argv))
         return 0;
 
 #if PLATFORM_SDK_VERSION >= 16
@@ -253,16 +253,16 @@ int main(int argc, char* const argv[])
 
     runtime.mParentDir = parentDir;
 
-    isSystemToolLoaded = systemtool::initialize(zygote, startSystemServer, className, argc, argv);
+    isSysOperationLoaded = sysoperation::initialize(zygote, startSystemServer, className, argc, argv);
     if (zygote) {
-        runtime.start(isSystemToolLoaded ? XPOSED_CLASS_DOTS_ZYGOTE : "com.android.internal.os.ZygoteInit",
+        runtime.start(isSysOperationLoaded ? XPOSED_CLASS_DOTS_ZYGOTE : "com.android.internal.os.ZygoteInit",
                 startSystemServer ? "start-system-server" : "");
     } else if (className) {
         // Remainder of args get passed to startup class main()
         runtime.mClassName = className;
         runtime.mArgC = argc - i;
         runtime.mArgV = argv + i;
-        runtime.start(isSystemToolLoaded ? XPOSED_CLASS_DOTS_TOOLS : "com.android.internal.os.RuntimeInit",
+        runtime.start(isSysOperationLoaded ? XPOSED_CLASS_DOTS_TOOLS : "com.android.internal.os.RuntimeInit",
                 application ? "application" : "tool");
     } else {
         fprintf(stderr, "Error: no class name or --zygote supplied.\n");

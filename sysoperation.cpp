@@ -2,12 +2,12 @@
  * This file includes functions called directly from app_main.cpp during startup.
  */
 
-#define LOG_TAG "SystemTool"
+#define LOG_TAG "SysOperation"
 
-#include "systemtool.h"
-#include "systemtool_logcat.h"
-#include "systemtool_safemode.h"
-#include "systemtool_service.h"
+#include "sysoperation.h"
+#include "sysoperation_logcat.h"
+#include "sysoperation_safemode.h"
+#include "sysoperation_service.h"
 
 #include <cstring>
 #include <ctype.h>
@@ -27,19 +27,19 @@
 #include <linux/capability.h>
 #endif
 
-namespace systemtool {
+namespace sysoperation {
 
 ////////////////////////////////////////////////////////////
 // Variables
 ////////////////////////////////////////////////////////////
 
-SystemToolShared* systemtool = new SystemToolShared;
+SysOperationShared* sysoperation = new SysOperationShared;
 static int sdkVersion = -1;
 static char* argBlockStart;
 static size_t argBlockLength;
 
-const char* systemtoolVersion = "unknown (invalid " XPOSED_PROP_FILE ")";
-uint32_t systemtoolVersionInt = 0;
+const char* sysoperationVersion = "unknown (invalid " XPOSED_PROP_FILE ")";
+uint32_t sysoperationVersionInt = 0;
 
 ////////////////////////////////////////////////////////////
 // Functions
@@ -47,15 +47,15 @@ uint32_t systemtoolVersionInt = 0;
 
 /** Handle special command line options. */
 bool handleOptions(int argc, char* const argv[]) {
-    parseSystemToolProp();
+    parseSysOperationProp();
 
-    if (argc == 2 && strcmp(argv[1], "--systemtoolversion") == 0) {
-        printf("SystemTool version: %s\n", systemtoolVersion);
+    if (argc == 2 && strcmp(argv[1], "--sysoperationversion") == 0) {
+        printf("SysOperation version: %s\n", sysoperationVersion);
         return true;
     }
 
-    if (argc == 2 && strcmp(argv[1], "--systemtooltestsafemode") == 0) {
-        printf("Testing SystemTool safemode trigger\n");
+    if (argc == 2 && strcmp(argv[1], "--sysoperationtestsafemode") == 0) {
+        printf("Testing SysOperation safemode trigger\n");
 
         if (detectSafemodeTrigger(shouldSkipSafemodeDelay())) {
             printf("Safemode triggered\n");
@@ -75,7 +75,7 @@ bool handleOptions(int argc, char* const argv[]) {
     return false;
 }
 
-/** Initialize SystemTool (unless it is disabled). */
+/** Initialize SysOperation (unless it is disabled). */
 bool initialize(bool zygote, bool startSystemServer, const char* className, int argc, char* const argv[]) {
 #if !defined(XPOSED_ENABLE_FOR_TOOLS)
     if (!zygote)
@@ -83,25 +83,25 @@ bool initialize(bool zygote, bool startSystemServer, const char* className, int 
 #endif
 
     if (isMinimalFramework()) {
-        ALOGI("Not loading SystemTool for minimal framework (encrypted device)");
+        ALOGI("Not loading SysOperation for minimal framework (encrypted device)");
         return false;
     }
 
-    systemtool->zygote = zygote;
-    systemtool->startSystemServer = startSystemServer;
-    systemtool->startClassName = className;
-    systemtool->systemtoolVersionInt = systemtoolVersionInt;
+    sysoperation->zygote = zygote;
+    sysoperation->startSystemServer = startSystemServer;
+    sysoperation->startClassName = className;
+    sysoperation->sysoperationVersionInt = sysoperationVersionInt;
 
 #if XPOSED_WITH_SELINUX
-    systemtool->isSELinuxEnabled   = is_selinux_enabled() == 1;
-    systemtool->isSELinuxEnforcing = systemtool->isSELinuxEnabled && security_getenforce() == 1;
+    sysoperation->isSELinuxEnabled   = is_selinux_enabled() == 1;
+    sysoperation->isSELinuxEnforcing = sysoperation->isSELinuxEnabled && security_getenforce() == 1;
 #else
-    systemtool->isSELinuxEnabled   = false;
-    systemtool->isSELinuxEnforcing = false;
+    sysoperation->isSELinuxEnabled   = false;
+    sysoperation->isSELinuxEnforcing = false;
 #endif  // XPOSED_WITH_SELINUX
 
     if (startSystemServer) {
-        systemtool::logcat::printStartupMarker();
+        sysoperation::logcat::printStartupMarker();
     } else if (zygote) {
         // TODO Find a better solution for this
         // Give the primary Zygote process a little time to start first.
@@ -112,13 +112,13 @@ bool initialize(bool zygote, bool startSystemServer, const char* className, int 
     printRomInfo();
 
     if (startSystemServer) {
-        if (!determineSystemToolInstallerUidGid() || !systemtool::service::startAll()) {
+        if (!determineSysOperationInstallerUidGid() || !sysoperation::service::startAll()) {
             return false;
         }
-        systemtool::logcat::start();
+        sysoperation::logcat::start();
 #if XPOSED_WITH_SELINUX
-    } else if (systemtool->isSELinuxEnabled) {
-        if (!systemtool::service::startMembased()) {
+    } else if (sysoperation->isSELinuxEnabled) {
+        if (!sysoperation::service::startMembased()) {
             return false;
         }
 #endif  // XPOSED_WITH_SELINUX
@@ -126,14 +126,14 @@ bool initialize(bool zygote, bool startSystemServer, const char* className, int 
 
 #if XPOSED_WITH_SELINUX
     // Don't let any further forks access the Zygote service
-    if (systemtool->isSELinuxEnabled) {
-        systemtool::service::membased::restrictMemoryInheritance();
+    if (sysoperation->isSELinuxEnabled) {
+        sysoperation::service::membased::restrictMemoryInheritance();
     }
 #endif  // XPOSED_WITH_SELINUX
 
     // FIXME Zygote has no access to input devices, this would need to be check in system_server context
     if (zygote && !isSafemodeDisabled() && detectSafemodeTrigger(shouldSkipSafemodeDelay()))
-        disableSystemTool();
+        disableSysOperation();
 
     if (isDisabled() || (!zygote && shouldIgnoreCommand(argc, argv)))
         return false;
@@ -165,21 +165,21 @@ void printRomInfo() {
     property_get("ro.product.cpu.abi", platform, "n/a");
 
     ALOGI("-----------------");
-    ALOGI("Starting SystemTool version %s, compiled for SDK %d", systemtoolVersion, PLATFORM_SDK_VERSION);
+    ALOGI("Starting SysOperation version %s, compiled for SDK %d", sysoperationVersion, PLATFORM_SDK_VERSION);
     ALOGI("Device: %s (%s), Android version %s (SDK %s)", model, manufacturer, release, sdk);
     ALOGI("ROM: %s", rom);
     ALOGI("Build fingerprint: %s", fingerprint);
-    ALOGI("Platform: %s, %d-bit binary, system server: %s", platform, bit, systemtool->startSystemServer ? "yes" : "no");
-    if (!systemtool->zygote) {
-        ALOGI("Class name: %s", systemtool->startClassName);
+    ALOGI("Platform: %s, %d-bit binary, system server: %s", platform, bit, sysoperation->startSystemServer ? "yes" : "no");
+    if (!sysoperation->zygote) {
+        ALOGI("Class name: %s", sysoperation->startClassName);
     }
     ALOGI("SELinux enabled: %s, enforcing: %s",
-            systemtool->isSELinuxEnabled ? "yes" : "no",
-            systemtool->isSELinuxEnforcing ? "yes" : "no");
+            sysoperation->isSELinuxEnabled ? "yes" : "no",
+            sysoperation->isSELinuxEnforcing ? "yes" : "no");
 }
 
-/** Parses /system/systemtool.prop and stores selected values in variables */
-void parseSystemToolProp() {
+/** Parses /system/sysoperation.prop and stores selected values in variables */
+void parseSysOperationProp() {
     FILE *fp = fopen(XPOSED_PROP_FILE, "r");
     if (fp == NULL) {
         ALOGE("Could not read %s: %s", XPOSED_PROP_FILE, strerror(errno));
@@ -220,8 +220,8 @@ void parseSystemToolProp() {
                 continue;
             tmp = (char*) malloc(len + 1);
             strlcpy(tmp, value, len + 1);
-            systemtoolVersion = tmp;
-            systemtoolVersionInt = atoi(systemtoolVersion);
+            sysoperationVersion = tmp;
+            sysoperationVersionInt = atoi(sysoperationVersion);
         }
     }
     fclose(fp);
@@ -239,19 +239,19 @@ int getSdkVersion() {
     return sdkVersion;
 }
 
-/** Check whether SystemTool is disabled by a flag file */
+/** Check whether SysOperation is disabled by a flag file */
 bool isDisabled() {
     if (zygote_access(XPOSED_LOAD_BLOCKER, F_OK) == 0) {
-        ALOGE("Found %s, not loading SystemTool", XPOSED_LOAD_BLOCKER);
+        ALOGE("Found %s, not loading SysOperation", XPOSED_LOAD_BLOCKER);
         return true;
     }
     return false;
 }
 
-/** Create a flag file to disable SystemTool. */
-void disableSystemTool() {
+/** Create a flag file to disable SysOperation. */
+void disableSysOperation() {
     int fd;
-    // FIXME add a "touch" operation to systemtool::service::membased
+    // FIXME add a "touch" operation to sysoperation::service::membased
     fd = open(XPOSED_LOAD_BLOCKER, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
     if (fd >= 0)
         close(fd);
@@ -273,9 +273,9 @@ bool shouldSkipSafemodeDelay() {
         return false;
 }
 
-/** Ignore the broadcasts by various Superuser implementations to avoid spamming the SystemTool log. */
+/** Ignore the broadcasts by various Superuser implementations to avoid spamming the SysOperation log. */
 bool shouldIgnoreCommand(int argc, const char* const argv[]) {
-    if (argc < 4 || strcmp(systemtool->startClassName, "com.android.commands.am.Am") != 0)
+    if (argc < 4 || strcmp(sysoperation->startClassName, "com.android.commands.am.Am") != 0)
         return false;
 
     if (strcmp(argv[2], "broadcast") != 0 && strcmp(argv[2], "start") != 0)
@@ -320,15 +320,15 @@ static bool addPathToEnv(const char* name, const char* path) {
     return true;
 }
 
-/** Add SystemToolBridge.jar to the Java classpath. */
+/** Add SysOperationBridge.jar to the Java classpath. */
 bool addJarToClasspath() {
     ALOGI("-----------------");
 
     // Do we have a new version and are (re)starting zygote? Then load it!
     /*
     FIXME if you can
-    if (systemtool->startSystemServer && access(XPOSED_JAR_NEWVERSION, R_OK) == 0) {
-        ALOGI("Found new SystemTool jar version, activating it");
+    if (sysoperation->startSystemServer && access(XPOSED_JAR_NEWVERSION, R_OK) == 0) {
+        ALOGI("Found new SysOperation jar version, activating it");
         if (rename(XPOSED_JAR_NEWVERSION, XPOSED_JAR) != 0) {
             ALOGE("Could not move %s to %s", XPOSED_JAR_NEWVERSION, XPOSED_JAR);
             return false;
@@ -340,16 +340,16 @@ bool addJarToClasspath() {
         if (!addPathToEnv("CLASSPATH", XPOSED_JAR))
             return false;
 
-        ALOGI("Added SystemTool (%s) to CLASSPATH", XPOSED_JAR);
+        ALOGI("Added SysOperation (%s) to CLASSPATH", XPOSED_JAR);
         return true;
     } else {
-        ALOGE("ERROR: Could not access SystemTool jar '%s'", XPOSED_JAR);
+        ALOGE("ERROR: Could not access SysOperation jar '%s'", XPOSED_JAR);
         return false;
     }
 }
 
 /** Callback which checks the loaded shared libraries for libdvm/libart. */
-static bool determineRuntime(const char** systemtoolLibPath) {
+static bool determineRuntime(const char** sysoperationLibPath) {
     FILE *fp = fopen("/proc/self/maps", "r");
     if (fp == NULL) {
         ALOGE("Could not open /proc/self/maps: %s", strerror(errno));
@@ -366,13 +366,13 @@ static bool determineRuntime(const char** systemtoolLibPath) {
 
         if (strcmp("libdvm.so\n", libname) == 0) {
             ALOGI("Detected Dalvik runtime");
-            *systemtoolLibPath = XPOSED_LIB_DALVIK;
+            *sysoperationLibPath = XPOSED_LIB_DALVIK;
             success = true;
             break;
 
         } else if (strcmp("libart.so\n", libname) == 0) {
             ALOGI("Detected ART runtime");
-            *systemtoolLibPath = XPOSED_LIB_ART;
+            *sysoperationLibPath = XPOSED_LIB_ART;
             success = true;
             break;
         }
@@ -382,19 +382,19 @@ static bool determineRuntime(const char** systemtoolLibPath) {
     return success;
 }
 
-/** Load the libsystemtool_*.so library for the currently active runtime. */
+/** Load the libsysoperation_*.so library for the currently active runtime. */
 void onVmCreated(JNIEnv* env) {
     // Determine the currently active runtime
-    const char* systemtoolLibPath = NULL;
-    if (!determineRuntime(&systemtoolLibPath)) {
-        ALOGE("Could not determine runtime, not loading SystemTool");
+    const char* sysoperationLibPath = NULL;
+    if (!determineRuntime(&sysoperationLibPath)) {
+        ALOGE("Could not determine runtime, not loading SysOperation");
         return;
     }
 
-    // Load the suitable libsystemtool_*.so for it
-    void* systemtoolLibHandle = dlopen(systemtoolLibPath, RTLD_NOW);
-    if (!systemtoolLibHandle) {
-        ALOGE("Could not load libsystemtool: %s", dlerror());
+    // Load the suitable libsysoperation_*.so for it
+    void* sysoperationLibHandle = dlopen(sysoperationLibPath, RTLD_NOW);
+    if (!sysoperationLibHandle) {
+        ALOGE("Could not load libsysoperation: %s", dlerror());
         return;
     }
 
@@ -402,21 +402,21 @@ void onVmCreated(JNIEnv* env) {
     dlerror();
 
     // Initialize the library
-    bool (*systemtoolInitLib)(SystemToolShared* shared) = NULL;
-    *(void **) (&systemtoolInitLib) = dlsym(systemtoolLibHandle, "systemtoolInitLib");
-    if (!systemtoolInitLib)  {
-        ALOGE("Could not find function systemtoolInitLib");
+    bool (*sysoperationInitLib)(SysOperationShared* shared) = NULL;
+    *(void **) (&sysoperationInitLib) = dlsym(sysoperationLibHandle, "sysoperationInitLib");
+    if (!sysoperationInitLib)  {
+        ALOGE("Could not find function sysoperationInitLib");
         return;
     }
 
 #if XPOSED_WITH_SELINUX
-    systemtool->zygoteservice_accessFile = &service::membased::accessFile;
-    systemtool->zygoteservice_statFile   = &service::membased::statFile;
-    systemtool->zygoteservice_readFile   = &service::membased::readFile;
+    sysoperation->zygoteservice_accessFile = &service::membased::accessFile;
+    sysoperation->zygoteservice_statFile   = &service::membased::statFile;
+    sysoperation->zygoteservice_readFile   = &service::membased::readFile;
 #endif  // XPOSED_WITH_SELINUX
 
-    if (systemtoolInitLib(systemtool)) {
-        systemtool->onVmCreated(env);
+    if (sysoperationInitLib(sysoperation)) {
+        sysoperation->onVmCreated(env);
     }
 }
 
@@ -427,18 +427,18 @@ void setProcessName(const char* name) {
     set_process_name(name);
 }
 
-/** Determine the UID/GID of SystemTool Installer. */
-bool determineSystemToolInstallerUidGid() {
-    if (systemtool->isSELinuxEnabled) {
+/** Determine the UID/GID of SysOperation Installer. */
+bool determineSysOperationInstallerUidGid() {
+    if (sysoperation->isSELinuxEnabled) {
         struct stat* st = (struct stat*) mmap(NULL, sizeof(struct stat), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
         if (st == MAP_FAILED) {
-            ALOGE("Could not allocate memory in determineSystemToolInstallerUidGid(): %s", strerror(errno));
+            ALOGE("Could not allocate memory in determineSysOperationInstallerUidGid(): %s", strerror(errno));
             return false;
         }
 
         pid_t pid;
         if ((pid = fork()) < 0) {
-            ALOGE("Fork in determineSystemToolInstallerUidGid() failed: %s", strerror(errno));
+            ALOGE("Fork in determineSysOperationInstallerUidGid() failed: %s", strerror(errno));
             munmap(st, sizeof(struct stat));
             return false;
         } else if (pid == 0) {
@@ -465,8 +465,8 @@ bool determineSystemToolInstallerUidGid() {
             return false;
         }
 
-        systemtool->installer_uid = st->st_uid;
-        systemtool->installer_gid = st->st_gid;
+        sysoperation->installer_uid = st->st_uid;
+        sysoperation->installer_gid = st->st_gid;
         munmap(st, sizeof(struct stat));
         return true;
     } else {
@@ -476,20 +476,20 @@ bool determineSystemToolInstallerUidGid() {
             return false;
         }
 
-        systemtool->installer_uid = st.st_uid;
-        systemtool->installer_gid = st.st_gid;
+        sysoperation->installer_uid = st.st_uid;
+        sysoperation->installer_gid = st.st_gid;
         return true;
     }
 }
 
-/** Switch UID/GID to the ones of SystemTool Installer. */
-bool switchToSystemToolInstallerUidGid() {
-    if (setresgid(systemtool->installer_gid, systemtool->installer_gid, systemtool->installer_gid) != 0) {
-        ALOGE("Could not setgid(%d): %s", systemtool->installer_gid, strerror(errno));
+/** Switch UID/GID to the ones of SysOperation Installer. */
+bool switchToSysOperationInstallerUidGid() {
+    if (setresgid(sysoperation->installer_gid, sysoperation->installer_gid, sysoperation->installer_gid) != 0) {
+        ALOGE("Could not setgid(%d): %s", sysoperation->installer_gid, strerror(errno));
         return false;
     }
-    if (setresuid(systemtool->installer_uid, systemtool->installer_uid, systemtool->installer_uid) != 0) {
-        ALOGE("Could not setuid(%d): %s", systemtool->installer_uid, strerror(errno));
+    if (setresuid(sysoperation->installer_uid, sysoperation->installer_uid, sysoperation->installer_uid) != 0) {
+        ALOGE("Could not setuid(%d): %s", sysoperation->installer_uid, strerror(errno));
         return false;
     }
     return true;
@@ -529,4 +529,4 @@ bool isMinimalFramework() {
             (strcmp(voldDecrypt, "1") == 0));
 }
 
-}  // namespace systemtool
+}  // namespace sysoperation

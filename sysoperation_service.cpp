@@ -1,11 +1,11 @@
 /**
- * This file includes the SystemTool services, which are especially used to work around SELinux restrictions.
+ * This file includes the SysOperation services, which are especially used to work around SELinux restrictions.
  */
 
-#define LOG_TAG "SystemTool"
+#define LOG_TAG "SysOperation"
 
-#include "systemtool.h"
-#include "systemtool_service.h"
+#include "sysoperation.h"
+#include "sysoperation_service.h"
 
 #include <binder/BpBinder.h>
 #include <binder/IInterface.h>
@@ -23,7 +23,7 @@
 
 using namespace android;
 
-namespace systemtool {
+namespace sysoperation {
 namespace service {
 
 ////////////////////////////////////////////////////////////
@@ -379,12 +379,12 @@ char* readFile(const char* path, int* bytesRead) {
 
 namespace binder {
 
-#define XPOSED_BINDER_SYSTEM_SERVICE_NAME "user.systemtool.system"
-#define XPOSED_BINDER_APP_SERVICE_NAME    "user.systemtool.app"
+#define XPOSED_BINDER_SYSTEM_SERVICE_NAME "user.sysoperation.system"
+#define XPOSED_BINDER_APP_SERVICE_NAME    "user.sysoperation.app"
 
-class ISystemToolService: public IInterface {
+class ISysOperationService: public IInterface {
     public:
-        DECLARE_META_INTERFACE(SystemToolService);
+        DECLARE_META_INTERFACE(SysOperationService);
         virtual int test() const = 0;
         virtual status_t addService(const String16& name,
                                     const sp<IBinder>& service,
@@ -412,18 +412,18 @@ class ISystemToolService: public IInterface {
         };
 };
 
-class BnSystemToolService: public BnInterface<ISystemToolService> {
+class BnSysOperationService: public BnInterface<ISysOperationService> {
     public:
         virtual status_t onTransact( uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags = 0);
 };
 
-class BpSystemToolService: public BpInterface<ISystemToolService> {
+class BpSysOperationService: public BpInterface<ISysOperationService> {
     public:
-        BpSystemToolService(const sp<IBinder>& impl) : BpInterface<ISystemToolService>(impl) {}
+        BpSysOperationService(const sp<IBinder>& impl) : BpInterface<ISysOperationService>(impl) {}
 
         virtual int test() const {
             Parcel data, reply;
-            data.writeInterfaceToken(ISystemToolService::getInterfaceDescriptor());
+            data.writeInterfaceToken(ISysOperationService::getInterfaceDescriptor());
             remote()->transact(TEST_TRANSACTION, data, &reply);
             if (reply.readExceptionCode() != 0) return -1;
             return reply.readInt32();
@@ -432,7 +432,7 @@ class BpSystemToolService: public BpInterface<ISystemToolService> {
         virtual status_t addService(const String16& name, const sp<IBinder>& service,
                 bool allowIsolated = false) const {
             Parcel data, reply;
-            data.writeInterfaceToken(ISystemToolService::getInterfaceDescriptor());
+            data.writeInterfaceToken(ISysOperationService::getInterfaceDescriptor());
             data.writeString16(name);
             data.writeStrongBinder(service);
             data.writeInt32(allowIsolated ? 1 : 0);
@@ -442,7 +442,7 @@ class BpSystemToolService: public BpInterface<ISystemToolService> {
 
         virtual status_t accessFile(const String16& name, int32_t mode) const {
             Parcel data, reply;
-            data.writeInterfaceToken(ISystemToolService::getInterfaceDescriptor());
+            data.writeInterfaceToken(ISysOperationService::getInterfaceDescriptor());
             data.writeString16(name);
             data.writeInt32(mode);
 
@@ -455,7 +455,7 @@ class BpSystemToolService: public BpInterface<ISystemToolService> {
 
         virtual status_t statFile(const String16& name, int64_t* size, int64_t* mtime) const {
             Parcel data, reply;
-            data.writeInterfaceToken(ISystemToolService::getInterfaceDescriptor());
+            data.writeInterfaceToken(ISysOperationService::getInterfaceDescriptor());
             data.writeString16(name);
 
             remote()->transact(STAT_FILE_TRANSACTION, data, &reply);
@@ -474,7 +474,7 @@ class BpSystemToolService: public BpInterface<ISystemToolService> {
         virtual status_t readFile(const String16& filename, int32_t offset, int32_t length,
                 int64_t* size, int64_t* mtime, uint8_t** buffer, int32_t* bytesRead, String16* errormsg) const {
             Parcel data, reply;
-            data.writeInterfaceToken(ISystemToolService::getInterfaceDescriptor());
+            data.writeInterfaceToken(ISysOperationService::getInterfaceDescriptor());
             data.writeString16(filename);
             data.writeInt32(offset);
             data.writeInt32(length);
@@ -511,19 +511,19 @@ class BpSystemToolService: public BpInterface<ISystemToolService> {
         }
 };
 
-IMPLEMENT_META_INTERFACE(SystemToolService, "com.system.android.systemtool.ISystemToolService");
+IMPLEMENT_META_INTERFACE(SysOperationService, "com.system.android.sysoperation.ISysOperationService");
 
-status_t BnSystemToolService::onTransact(uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags)  {
+status_t BnSysOperationService::onTransact(uint32_t code, const Parcel& data, Parcel* reply, uint32_t flags)  {
     switch (code) {
         case TEST_TRANSACTION: {
-            CHECK_INTERFACE(ISystemToolService, data, reply);
+            CHECK_INTERFACE(ISysOperationService, data, reply);
             reply->writeNoException();
             reply->writeInt32(test());
             return NO_ERROR;
         } break;
 
         case ADD_SERVICE_TRANSACTION: {
-            CHECK_INTERFACE(ISystemToolService, data, reply);
+            CHECK_INTERFACE(ISysOperationService, data, reply);
             String16 which = data.readString16();
             sp<IBinder> b = data.readStrongBinder();
             bool allowIsolated = (data.readInt32() != 0);
@@ -532,7 +532,7 @@ status_t BnSystemToolService::onTransact(uint32_t code, const Parcel& data, Parc
         } break;
 
         case ACCESS_FILE_TRANSACTION: {
-            CHECK_INTERFACE(ISystemToolService, data, reply);
+            CHECK_INTERFACE(ISysOperationService, data, reply);
             String16 filename = data.readString16();
             int32_t mode = data.readInt32();
             status_t result = accessFile(filename, mode);
@@ -543,7 +543,7 @@ status_t BnSystemToolService::onTransact(uint32_t code, const Parcel& data, Parc
         } break;
 
         case STAT_FILE_TRANSACTION: {
-            CHECK_INTERFACE(ISystemToolService, data, reply);
+            CHECK_INTERFACE(ISysOperationService, data, reply);
             String16 filename = data.readString16();
             int64_t size, time;
             status_t result = statFile(filename, &size, &time);
@@ -560,7 +560,7 @@ status_t BnSystemToolService::onTransact(uint32_t code, const Parcel& data, Parc
         } break;
 
         case READ_FILE_TRANSACTION: {
-            CHECK_INTERFACE(ISystemToolService, data, reply);
+            CHECK_INTERFACE(ISysOperationService, data, reply);
             String16 filename = data.readString16();
             int32_t offset = data.readInt32();
             int32_t length = data.readInt32();
@@ -592,9 +592,9 @@ status_t BnSystemToolService::onTransact(uint32_t code, const Parcel& data, Parc
     }
 }
 
-class SystemToolService : public BnSystemToolService {
+class SysOperationService : public BnSysOperationService {
     public:
-        SystemToolService(bool system);
+        SysOperationService(bool system);
 
         virtual int test() const;
         virtual status_t addService(const String16& name,
@@ -629,19 +629,19 @@ static String16 formatToString16(const char* fmt, ...) {
     return result;
 }
 
-SystemToolService::SystemToolService(bool system)
+SysOperationService::SysOperationService(bool system)
         : isSystem(system) {}
 
-int SystemToolService::test() const {
+int SysOperationService::test() const {
     pid_t pid = IPCThreadState::self()->getCallingPid();
     ALOGD("This is PID %d, test method was called from PID %d", getpid(), pid);
     return getpid();
 }
 
-status_t SystemToolService::addService(const String16& name, const sp<IBinder>& service,
+status_t SysOperationService::addService(const String16& name, const sp<IBinder>& service,
         bool allowIsolated) const {
     uid_t uid = IPCThreadState::self()->getCallingUid();
-    if (!isSystem || (uid != systemtool->installer_uid)) {
+    if (!isSystem || (uid != sysoperation->installer_uid)) {
         ALOGE("Permission denied, not adding service %s", String8(name).string());
         errno = EPERM;
         return -1;
@@ -654,10 +654,10 @@ status_t SystemToolService::addService(const String16& name, const sp<IBinder>& 
 #endif
 }
 
-status_t SystemToolService::accessFile(const String16& filename16, int32_t mode) const {
+status_t SysOperationService::accessFile(const String16& filename16, int32_t mode) const {
     uid_t caller = IPCThreadState::self()->getCallingUid();
     if (caller != UID_SYSTEM) {
-        ALOGE("UID %d is not allowed to use the SystemTool service", caller);
+        ALOGE("UID %d is not allowed to use the SysOperation service", caller);
         errno = EPERM;
         return -1;
     }
@@ -665,10 +665,10 @@ status_t SystemToolService::accessFile(const String16& filename16, int32_t mode)
     return TEMP_FAILURE_RETRY(access(filename, mode));
 }
 
-status_t SystemToolService::statFile(const String16& filename16, int64_t* size, int64_t* time) const {
+status_t SysOperationService::statFile(const String16& filename16, int64_t* size, int64_t* time) const {
     uid_t caller = IPCThreadState::self()->getCallingUid();
     if (caller != UID_SYSTEM) {
-        ALOGE("UID %d is not allowed to use the SystemTool service", caller);
+        ALOGE("UID %d is not allowed to use the SysOperation service", caller);
         errno = EPERM;
         return -1;
     }
@@ -682,12 +682,12 @@ status_t SystemToolService::statFile(const String16& filename16, int64_t* size, 
     return result;
 }
 
-status_t SystemToolService::readFile(const String16& filename16, int32_t offset, int32_t length,
+status_t SysOperationService::readFile(const String16& filename16, int32_t offset, int32_t length,
         int64_t* size, int64_t* mtime, uint8_t** buffer, int32_t* bytesRead, String16* errormsg) const {
 
     uid_t caller = IPCThreadState::self()->getCallingUid();
     if (caller != UID_SYSTEM) {
-        ALOGE("UID %d is not allowed to use the SystemTool service", caller);
+        ALOGE("UID %d is not allowed to use the SysOperation service", caller);
         return EPERM;
     }
 
@@ -786,11 +786,11 @@ status_t SystemToolService::readFile(const String16& filename16, int32_t offset,
 ////////////////////////////////////////////////////////////
 
 static void systemService() {
-    systemtool::setProcessName("systemtool_service_system");
-    systemtool::dropCapabilities();
+    sysoperation::setProcessName("sysoperation_service_system");
+    sysoperation::dropCapabilities();
 
 #if XPOSED_WITH_SELINUX
-    if (systemtool->isSELinuxEnabled) {
+    if (sysoperation->isSELinuxEnabled) {
         if (setcon(ctx_system) != 0) {
             ALOGE("Could not switch to %s context", ctx_system);
             exit(EXIT_FAILURE);
@@ -801,9 +801,9 @@ static void systemService() {
     // Initialize the system service
     sp<IServiceManager> sm(defaultServiceManager());
 #if PLATFORM_SDK_VERSION >= 16
-    status_t err = sm->addService(String16(XPOSED_BINDER_SYSTEM_SERVICE_NAME), new binder::SystemToolService(true), true);
+    status_t err = sm->addService(String16(XPOSED_BINDER_SYSTEM_SERVICE_NAME), new binder::SysOperationService(true), true);
 #else
-    status_t err = sm->addService(String16(XPOSED_BINDER_SYSTEM_SERVICE_NAME), new binder::SystemToolService(true));
+    status_t err = sm->addService(String16(XPOSED_BINDER_SYSTEM_SERVICE_NAME), new binder::SysOperationService(true));
 #endif
     if (err != NO_ERROR) {
         ALOGE("Error %d while adding system service %s", err, XPOSED_BINDER_SYSTEM_SERVICE_NAME);
@@ -819,14 +819,14 @@ static void systemService() {
 }
 
 static void appService() {
-    systemtool::setProcessName("systemtool_service_app");
-    if (!systemtool::switchToSystemToolInstallerUidGid()) {
+    sysoperation::setProcessName("sysoperation_service_app");
+    if (!sysoperation::switchToSysOperationInstallerUidGid()) {
         exit(EXIT_FAILURE);
     }
-    systemtool::dropCapabilities();
+    sysoperation::dropCapabilities();
 
 #if XPOSED_WITH_SELINUX
-    if (systemtool->isSELinuxEnabled) {
+    if (sysoperation->isSELinuxEnabled) {
         if (setcon(ctx_app) != 0) {
             ALOGE("Could not switch to %s context", ctx_app);
             exit(EXIT_FAILURE);
@@ -837,8 +837,8 @@ static void appService() {
     // We have to register the app service by using the already running system service as a proxy
     sp<IServiceManager> sm(defaultServiceManager());
     sp<IBinder> systemBinder = sm->getService(String16(XPOSED_BINDER_SYSTEM_SERVICE_NAME));
-    sp<binder::ISystemToolService> systemtoolSystemService = interface_cast<binder::ISystemToolService>(systemBinder);
-    status_t err = systemtoolSystemService->addService(String16(XPOSED_BINDER_APP_SERVICE_NAME), new binder::SystemToolService(false), true);
+    sp<binder::ISysOperationService> sysoperationSystemService = interface_cast<binder::ISysOperationService>(systemBinder);
+    status_t err = sysoperationSystemService->addService(String16(XPOSED_BINDER_APP_SERVICE_NAME), new binder::SysOperationService(false), true);
 
     // Check result for the app service registration
     if (err != NO_ERROR) {
@@ -848,7 +848,7 @@ static void appService() {
 
 #if XPOSED_WITH_SELINUX
     // Initialize the memory-based Zygote service
-    if (systemtool->isSELinuxEnabled) {
+    if (sysoperation->isSELinuxEnabled) {
         pthread_t thMemBased;
         if (pthread_create(&thMemBased, NULL, &membased::looper, NULL) != 0) {
             ALOGE("Could not create thread for memory-based service: %s", strerror(errno));
@@ -868,7 +868,7 @@ static void appService() {
 bool checkMembasedRunning() {
     // Ensure that the memory based service is running
     if (!membased::waitForRunning(5)) {
-        ALOGE("SystemTool's Zygote service is not running, cannot work without it");
+        ALOGE("SysOperation's Zygote service is not running, cannot work without it");
         return false;
     }
 
@@ -876,14 +876,14 @@ bool checkMembasedRunning() {
 }
 
 bool startAll() {
-    if (systemtool->isSELinuxEnabled && !membased::init()) {
+    if (sysoperation->isSELinuxEnabled && !membased::init()) {
         return false;
     }
 
     // system context service
     pid_t pid;
     if ((pid = fork()) < 0) {
-        ALOGE("Fork for SystemTool service in system context failed: %s", strerror(errno));
+        ALOGE("Fork for SysOperation service in system context failed: %s", strerror(errno));
         return false;
     } else if (pid == 0) {
         systemService();
@@ -893,7 +893,7 @@ bool startAll() {
 
     // app context service
     if ((pid = fork()) < 0) {
-        ALOGE("Fork for SystemTool service in app context failed: %s", strerror(errno));
+        ALOGE("Fork for SysOperation service in app context failed: %s", strerror(errno));
         return false;
     } else if (pid == 0) {
         appService();
@@ -901,7 +901,7 @@ bool startAll() {
         exit(EXIT_FAILURE);
     }
 
-    if (systemtool->isSELinuxEnabled && !checkMembasedRunning()) {
+    if (sysoperation->isSELinuxEnabled && !checkMembasedRunning()) {
         return false;
     }
 
@@ -910,7 +910,7 @@ bool startAll() {
 
 #if XPOSED_WITH_SELINUX
 bool startMembased() {
-    if (!systemtool->isSELinuxEnabled) {
+    if (!sysoperation->isSELinuxEnabled) {
         return true;
     }
 
@@ -920,14 +920,14 @@ bool startMembased() {
 
     pid_t pid;
     if ((pid = fork()) < 0) {
-        ALOGE("Fork for SystemTool Zygote service failed: %s", strerror(errno));
+        ALOGE("Fork for SysOperation Zygote service failed: %s", strerror(errno));
         return false;
     } else if (pid == 0) {
-        systemtool::setProcessName("systemtool_zygote_service");
-        if (!systemtool::switchToSystemToolInstallerUidGid()) {
+        sysoperation::setProcessName("sysoperation_zygote_service");
+        if (!sysoperation::switchToSysOperationInstallerUidGid()) {
             exit(EXIT_FAILURE);
         }
-        systemtool::dropCapabilities();
+        sysoperation::dropCapabilities();
         if (setcon(ctx_app) != 0) {
             ALOGE("Could not switch to %s context", ctx_app);
             exit(EXIT_FAILURE);
@@ -942,4 +942,4 @@ bool startMembased() {
 #endif  // XPOSED_WITH_SELINUX
 
 }  // namespace service
-}  // namespace systemtool
+}  // namespace sysoperation

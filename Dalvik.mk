@@ -5,8 +5,8 @@
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
-  libsystemtool_common.cpp \
-  libsystemtool_dalvik.cpp
+  libsysoperation_common.cpp \
+  libsysoperation_dalvik.cpp
 
 LOCAL_C_INCLUDES += \
   dalvik \
@@ -35,7 +35,7 @@ ifeq (1,$(strip $(shell expr $(PLATFORM_SDK_VERSION) \>= 17)))
   LOCAL_CFLAGS += -DXPOSED_WITH_SELINUX=1
 endif
 
-LOCAL_MODULE := libsystemtool_dalvik
+LOCAL_MODULE := libsysoperation_dalvik
 LOCAL_MODULE_TAGS := optional
 LOCAL_STRIP_MODULE := keep_symbols
 

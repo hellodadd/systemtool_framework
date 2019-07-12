@@ -16,10 +16,10 @@ else
 endif
 
 LOCAL_SRC_FILES += \
-  systemtool.cpp \
-  systemtool_logcat.cpp \
-  systemtool_service.cpp \
-  systemtool_safemode.cpp
+  sysoperation.cpp \
+  sysoperation_logcat.cpp \
+  sysoperation_service.cpp \
+  sysoperation_safemode.cpp
 
 LOCAL_SHARED_LIBRARIES := \
   libcutils \

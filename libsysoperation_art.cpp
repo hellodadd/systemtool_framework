@@ -2,10 +2,10 @@
  * This file includes functions specific to the ART runtime.
  */
 
-#define LOG_TAG "SystemTool"
+#define LOG_TAG "SysOperation"
 
-#include "systemtool_shared.h"
-#include "libsystemtool_common.h"
+#include "sysoperation_shared.h"
+#include "libsysoperation_common.h"
 #if PLATFORM_SDK_VERSION >= 21
 #include "fd_utils-inl.h"
 #endif
@@ -35,25 +35,25 @@ using namespace art;
 using art::mirror::ArtMethod;
 #endif
 
-namespace systemtool {
+namespace sysoperation {
 
 
 ////////////////////////////////////////////////////////////
 // Library initialization
 ////////////////////////////////////////////////////////////
 
-/** Called by SystemTool's app_process replacement. */
-bool systemtoolInitLib(SystemToolShared* shared) {
-    systemtool = shared;
-    systemtool->onVmCreated = &onVmCreatedCommon;
+/** Called by SysOperation's app_process replacement. */
+bool sysoperationInitLib(SysOperationShared* shared) {
+    sysoperation = shared;
+    sysoperation->onVmCreated = &onVmCreatedCommon;
     return true;
 }
 
 /** Called very early during VM startup. */
 bool onVmCreated(JNIEnv*) {
     // TODO: Handle CLASS_MIUI_RESOURCES?
-    ArtMethod::xposed_callback_class = classSystemToolBridge;
-    ArtMethod::xposed_callback_method = methodSystemToolBridgeHandleHkedMethod;
+    ArtMethod::xposed_callback_class = classSysOperationBridge;
+    ArtMethod::xposed_callback_method = methodSysOperationBridgeHandleHkedMethod;
     return true;
 }
 
@@ -75,7 +75,7 @@ void logExceptionStackTrace() {
 // JNI methods
 ////////////////////////////////////////////////////////////
 
-void SystemToolBridge_hkMethodNative(JNIEnv* env, jclass, jobject javaReflectedMethod,
+void SysOperationBridge_hkMethodNative(JNIEnv* env, jclass, jobject javaReflectedMethod,
             jobject, jint, jobject javaAdditionalInfo) {
     // Detect usage errors.
     ScopedObjectAccess soa(env);
@@ -95,7 +95,7 @@ void SystemToolBridge_hkMethodNative(JNIEnv* env, jclass, jobject javaReflectedM
     artMethod->EnableXposedHook(soa, javaAdditionalInfo);
 }
 
-jobject SystemToolBridge_invOriMethodNative(JNIEnv* env, jclass, jobject javaMethod,
+jobject SysOperationBridge_invOriMethodNative(JNIEnv* env, jclass, jobject javaMethod,
             jint isResolved, jobjectArray, jclass, jobject javaReceiver, jobjectArray javaArgs) {
     ScopedFastNativeObjectAccess soa(env);
     if (UNLIKELY(!isResolved)) {
@@ -111,7 +111,7 @@ jobject SystemToolBridge_invOriMethodNative(JNIEnv* env, jclass, jobject javaMet
 #endif
 }
 
-void SystemToolBridge_setObjectClassNative(JNIEnv* env, jclass, jobject javaObj, jclass javaClazz) {
+void SysOperationBridge_setObjectClassNative(JNIEnv* env, jclass, jobject javaObj, jclass javaClazz) {
     ScopedObjectAccess soa(env);
     StackHandleScope<3> hs(soa.Self());
     Handle<mirror::Class> clazz(hs.NewHandle(soa.Decode<mirror::Class*>(javaClazz)));
@@ -139,12 +139,12 @@ void SystemToolBridge_setObjectClassNative(JNIEnv* env, jclass, jobject javaObj,
     obj->SetClass(clazz.Get());
 }
 
-void SystemToolBridge_dumpObjectNative(JNIEnv*, jclass, jobject) {
+void SysOperationBridge_dumpObjectNative(JNIEnv*, jclass, jobject) {
     // TODO Can be useful for debugging
     UNIMPLEMENTED(ERROR|LOG_XPOSED);
 }
 
-jobject SystemToolBridge_cloneToSubclassNative(JNIEnv* env, jclass, jobject javaObject, jclass javaClazz) {
+jobject SysOperationBridge_cloneToSubclassNative(JNIEnv* env, jclass, jobject javaObject, jclass javaClazz) {
     ScopedObjectAccess soa(env);
     StackHandleScope<3> hs(soa.Self());
     Handle<mirror::Object> obj(hs.NewHandle(soa.Decode<mirror::Object*>(javaObject)));
@@ -153,7 +153,7 @@ jobject SystemToolBridge_cloneToSubclassNative(JNIEnv* env, jclass, jobject java
     return soa.AddLocalReference<jobject>(dest.Get());
 }
 
-void SystemToolBridge_removeFinalFlagNative(JNIEnv* env, jclass, jclass javaClazz) {
+void SysOperationBridge_removeFinalFlagNative(JNIEnv* env, jclass, jclass javaClazz) {
     ScopedObjectAccess soa(env);
     StackHandleScope<1> hs(soa.Self());
     Handle<mirror::Class> clazz(hs.NewHandle(soa.Decode<mirror::Class*>(javaClazz)));
@@ -163,18 +163,18 @@ void SystemToolBridge_removeFinalFlagNative(JNIEnv* env, jclass, jclass javaClaz
     }
 }
 
-jint SystemToolBridge_getRuntime(JNIEnv*, jclass) {
+jint SysOperationBridge_getRuntime(JNIEnv*, jclass) {
     return 2; // RUNTIME_ART
 }
 
 #if PLATFORM_SDK_VERSION >= 21
 static FileDescriptorTable* gClosedFdTable = NULL;
 
-void SystemToolBridge_closeFileBeforeFkNative(JNIEnv*, jclass) {
+void SysOperationBridge_closeFileBeforeFkNative(JNIEnv*, jclass) {
     gClosedFdTable = FileDescriptorTable::Create();
 }
 
-void SystemToolBridge_reopenFileAfterFkNative(JNIEnv*, jclass) {
+void SysOperationBridge_reopenFileAfterFkNative(JNIEnv*, jclass) {
     gClosedFdTable->Reopen();
     delete gClosedFdTable;
     gClosedFdTable = NULL;
@@ -182,7 +182,7 @@ void SystemToolBridge_reopenFileAfterFkNative(JNIEnv*, jclass) {
 #endif
 
 #if PLATFORM_SDK_VERSION >= 24
-void SystemToolBridge_invalidateCallersNative(JNIEnv* env, jclass, jobjectArray javaMethods) {
+void SysOperationBridge_invalidateCallersNative(JNIEnv* env, jclass, jobjectArray javaMethods) {
     ScopedObjectAccess soa(env);
     auto* runtime = Runtime::Current();
     auto* cl = runtime->GetClassLinker();
@@ -209,4 +209,4 @@ void SystemToolBridge_invalidateCallersNative(JNIEnv* env, jclass, jobjectArray 
 }
 #endif
 
-}  // namespace systemtool
+}  // namespace sysoperation

@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace systemtool {
+namespace sysoperation {
 namespace service {
     bool startAll();
 
@@ -23,13 +23,13 @@ namespace service {
 
 static inline int zygote_access(const char *pathname, int mode) {
 #if XPOSED_WITH_SELINUX
-    if (systemtool->isSELinuxEnabled)
-        return systemtool::service::membased::accessFile(pathname, mode);
+    if (sysoperation->isSELinuxEnabled)
+        return sysoperation::service::membased::accessFile(pathname, mode);
 #endif  // XPOSED_WITH_SELINUX
 
     return access(pathname, mode);
 }
 
-}  // namespace systemtool
+}  // namespace sysoperation
 
 #endif /* XPOSED_SERVICE_H_ */
