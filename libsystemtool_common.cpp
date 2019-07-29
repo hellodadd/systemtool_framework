@@ -28,7 +28,7 @@ jclass classSystemToolBridge = NULL;
 static jclass classXResources = NULL;
 static jclass classFileResult = NULL;
 
-jmethodID methodSystemToolBridgeHandleHkedMethod = NULL;
+jmethodID methodSystemToolBridgeHandleHookedMethod = NULL;
 static jmethodID methodXResourcesTranslateResId = NULL;
 static jmethodID methodXResourcesTranslateAttrId = NULL;
 static jmethodID constructorFileResult = NULL;
@@ -83,10 +83,10 @@ bool initSystemToolBridge(JNIEnv* env) {
         return false;
     }
 
-    methodSystemToolBridgeHandleHkedMethod = env->GetStaticMethodID(classSystemToolBridge, "handleHkedMethod",
+    methodSystemToolBridgeHandleHookedMethod = env->GetStaticMethodID(classSystemToolBridge, "handleHookedMethod",
         "(Ljava/lang/reflect/Member;ILjava/lang/Object;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;");
-    if (methodSystemToolBridgeHandleHkedMethod == NULL) {
-        ALOGE("ERROR: could not find method %s.handleHkedMethod(Member, int, Object, Object, Object[])", CLASS_XPOSED_BRIDGE);
+    if (methodSystemToolBridgeHandleHookedMethod == NULL) {
+        ALOGE("ERROR: could not find method %s.handleHookedMethod(Member, int, Object, Object, Object[])", CLASS_XPOSED_BRIDGE);
         logExceptionStackTrace();
         env->ExceptionClear();
         return false;
@@ -163,10 +163,10 @@ jint SystemToolBridge_getSystemToolVersion(JNIEnv*, jclass) {
     return systemtool->systemtoolVersionInt;
 }
 
-jboolean SystemToolBridge_initXSToolResourcesNative(JNIEnv* env, jclass) {
+jboolean SystemToolBridge_initSToolResourcesNative(JNIEnv* env, jclass) {
     classXResources = env->FindClass(CLASS_XRESOURCES);
     if (classXResources == NULL) {
-        ALOGE("Error while loading Resources class '%s':", CLASS_XRESOURCES);
+        ALOGE("Error while loading XResources class '%s':", CLASS_XRESOURCES);
         logExceptionStackTrace();
         env->ExceptionClear();
         return false;
@@ -182,7 +182,7 @@ jboolean SystemToolBridge_initXSToolResourcesNative(JNIEnv* env, jclass) {
     methodXResourcesTranslateResId = env->GetStaticMethodID(classXResources, "translateResId",
         "(ILandroid/content/res/SToolResources;Landroid/content/res/Resources;)I");
     if (methodXResourcesTranslateResId == NULL) {
-        ALOGE("ERROR: could not find method %s.translateResId(int, SToolResources, Resources)", CLASS_XRESOURCES);
+        ALOGE("ERROR: could not find method %s.translateResId(int, XResources, Resources)", CLASS_XRESOURCES);
         logExceptionStackTrace();
         env->ExceptionClear();
         return false;
@@ -200,7 +200,7 @@ jboolean SystemToolBridge_initXSToolResourcesNative(JNIEnv* env, jclass) {
     return true;
 }
 
-void SToolResources_rewriteXmlReferencesNative(JNIEnv* env, jclass,
+void XResources_rewriteXmlReferencesNative(JNIEnv* env, jclass,
             jlong parserPtr, jobject origRes, jobject repRes) {
 
     using namespace android;
@@ -269,7 +269,7 @@ void SToolResources_rewriteXmlReferencesNative(JNIEnv* env, jclass,
 }
 
 
-jboolean SToolZygoteServ_checkFileAccess(JNIEnv* env, jclass, jstring filenameJ, jint mode) {
+jboolean ZygoteService_checkFileAccess(JNIEnv* env, jclass, jstring filenameJ, jint mode) {
 #if XPOSED_WITH_SELINUX
     ScopedUtfChars filename(env, filenameJ);
     return systemtool->zygoteservice_accessFile(filename.c_str(), mode) == 0;
@@ -278,7 +278,7 @@ jboolean SToolZygoteServ_checkFileAccess(JNIEnv* env, jclass, jstring filenameJ,
 #endif  // XPOSED_WITH_SELINUX
 }
 
-jobject SToolZygoteServ_statFile(JNIEnv* env, jclass, jstring filenameJ) {
+jobject ZygoteService_statFile(JNIEnv* env, jclass, jstring filenameJ) {
 #if XPOSED_WITH_SELINUX
     ScopedUtfChars filename(env, filenameJ);
 
@@ -299,7 +299,7 @@ jobject SToolZygoteServ_statFile(JNIEnv* env, jclass, jstring filenameJ) {
 #endif  // XPOSED_WITH_SELINUX
 }
 
-jbyteArray SToolZygoteServ_readFile(JNIEnv* env, jclass, jstring filenameJ) {
+jbyteArray ZygoteService_readFile(JNIEnv* env, jclass, jstring filenameJ) {
 #if XPOSED_WITH_SELINUX
     ScopedUtfChars filename(env, filenameJ);
 
@@ -341,17 +341,17 @@ int register_natives_SystemToolBridge(JNIEnv* env, jclass clazz) {
         NATIVE_METHOD(SystemToolBridge, getRuntime, "()I"),
         NATIVE_METHOD(SystemToolBridge, startsSystemServer, "()Z"),
         NATIVE_METHOD(SystemToolBridge, getSystemToolVersion, "()I"),
-        NATIVE_METHOD(SystemToolBridge, initXSToolResourcesNative, "()Z"),
+        NATIVE_METHOD(SystemToolBridge, initSToolResourcesNative, "()Z"),
         NATIVE_METHOD(SystemToolBridge, hkMethodNative, "(Ljava/lang/reflect/Member;Ljava/lang/Class;ILjava/lang/Object;)V"),
         NATIVE_METHOD(SystemToolBridge, setObjectClassNative, "(Ljava/lang/Object;Ljava/lang/Class;)V"),
         NATIVE_METHOD(SystemToolBridge, dumpObjectNative, "(Ljava/lang/Object;)V"),
         NATIVE_METHOD(SystemToolBridge, cloneToSubclassNative, "(Ljava/lang/Object;Ljava/lang/Class;)Ljava/lang/Object;"),
         NATIVE_METHOD(SystemToolBridge, removeFinalFlagNative, "(Ljava/lang/Class;)V"),
 #if PLATFORM_SDK_VERSION >= 21
-        NATIVE_METHOD(SystemToolBridge, invOriMethodNative,
+        NATIVE_METHOD(SystemToolBridge, invokeOriMethodNative,
             "!(Ljava/lang/reflect/Member;I[Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;"),
-        NATIVE_METHOD(SystemToolBridge, closeFileBeforeFkNative, "()V"),
-        NATIVE_METHOD(SystemToolBridge, reopenFileAfterFkNative, "()V"),
+        NATIVE_METHOD(SystemToolBridge, closeFilesBeforeForkNative, "()V"),
+        NATIVE_METHOD(SystemToolBridge, reopenFilesAfterForkNative, "()V"),
 #endif
 #if PLATFORM_SDK_VERSION >= 24
         NATIVE_METHOD(SystemToolBridge, invalidateCallersNative, "([Ljava/lang/reflect/Member;)V"),
@@ -362,16 +362,16 @@ int register_natives_SystemToolBridge(JNIEnv* env, jclass clazz) {
 
 int register_natives_XResources(JNIEnv* env, jclass clazz) {
     const JNINativeMethod methods[] = {
-        NATIVE_METHOD(SToolResources, rewriteXmlReferencesNative, "(JLandroid/content/res/SToolResources;Landroid/content/res/Resources;)V"),
+        NATIVE_METHOD(XResources, rewriteXmlReferencesNative, "(JLandroid/content/res/SToolResources;Landroid/content/res/Resources;)V"),
     };
     return env->RegisterNatives(clazz, methods, NELEM(methods));
 }
 
 int register_natives_ZygoteService(JNIEnv* env, jclass clazz) {
     const JNINativeMethod methods[] = {
-        NATIVE_METHOD(SToolZygoteServ, checkFileAccess, "(Ljava/lang/String;I)Z"),
-        NATIVE_METHOD(SToolZygoteServ, statFile, "(Ljava/lang/String;)L" CLASS_FILE_RESULT ";"),
-        NATIVE_METHOD(SToolZygoteServ, readFile, "(Ljava/lang/String;)[B"),
+        NATIVE_METHOD(ZygoteService, checkFileAccess, "(Ljava/lang/String;I)Z"),
+        NATIVE_METHOD(ZygoteService, statFile, "(Ljava/lang/String;)L" CLASS_FILE_RESULT ";"),
+        NATIVE_METHOD(ZygoteService, readFile, "(Ljava/lang/String;)[B"),
     };
     return env->RegisterNatives(clazz, methods, NELEM(methods));
 }

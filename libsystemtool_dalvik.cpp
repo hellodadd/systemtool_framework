@@ -17,7 +17,7 @@ namespace systemtool {
 
 bool initMemberOffsets(JNIEnv* env);
 void hookedMethodCallback(const u4* args, JValue* pResult, const Method* method, ::Thread* self);
-void SystemToolBridge_invOriMethodNative(const u4* args, JValue* pResult, const Method* method, ::Thread* self);
+void SystemToolBridge_invokeOriginalMethodNative(const u4* args, JValue* pResult, const Method* method, ::Thread* self);
 
 
 ////////////////////////////////////////////////////////////
@@ -55,15 +55,15 @@ bool onVmCreated(JNIEnv* env) {
     }
     env->ExceptionClear();
 
-    Method* systemtoolInvokeOriginalMethodNative = (Method*) env->GetStaticMethodID(classSystemToolBridge, "invOriMethodNative",
+    Method* systemtoolInvokeOriginalMethodNative = (Method*) env->GetStaticMethodID(classSystemToolBridge, "invokeOriginalMethodNative",
         "(Ljava/lang/reflect/Member;I[Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;");
     if (systemtoolInvokeOriginalMethodNative == NULL) {
-        ALOGE("ERROR: could not find method %s.invOriMethodNative(Member, int, Class[], Class, Object, Object[])", CLASS_XPOSED_BRIDGE);
+        ALOGE("ERROR: could not find method %s.invokeOriginalMethodNative(Member, int, Class[], Class, Object, Object[])", CLASS_XPOSED_BRIDGE);
         dvmLogExceptionStackTrace();
         env->ExceptionClear();
         return false;
     }
-    dvmSetNativeFunc(systemtoolInvokeOriginalMethodNative, SystemToolBridge_invOriMethodNative, NULL);
+    dvmSetNativeFunc(systemtoolInvokeOriginalMethodNative, SystemToolBridge_invokeOriginalMethodNative, NULL);
 
     objectArrayClass = dvmFindArrayClass("[Ljava/lang/Object;", NULL);
     if (objectArrayClass == NULL) {
@@ -208,7 +208,7 @@ void hookedMethodCallback(const u4* args, JValue* pResult, const Method* method,
 
     // call the Java handler function
     JValue result;
-    dvmCallMethod(self, (Method*) methodSystemToolBridgeHandleHkedMethod, NULL, &result,
+    dvmCallMethod(self, (Method*) methodSystemToolBridgeHandleHookedMethod, NULL, &result,
         originalReflected, (int) original, additionalInfo, thisObject, argsArray);
 
     dvmReleaseTrackedAlloc(argsArray, self);
@@ -235,7 +235,7 @@ void hookedMethodCallback(const u4* args, JValue* pResult, const Method* method,
 }
 
 
-void SystemToolBridge_hkMethodNative(JNIEnv* env, jclass clazz, jobject reflectedMethodIndirect,
+void SystemToolBridge_hookMethodNative(JNIEnv* env, jclass clazz, jobject reflectedMethodIndirect,
             jobject declaredClassIndirect, jint slot, jobject additionalInfoIndirect) {
     // Usage errors?
     if (declaredClassIndirect == NULL || reflectedMethodIndirect == NULL) {
@@ -285,7 +285,7 @@ void SystemToolBridge_hkMethodNative(JNIEnv* env, jclass clazz, jobject reflecte
  * Simplified copy of Method.invokeNative(), but calls the original (non-hooked) method
  * and has no access checks. Used to call the real implementation of hooked methods.
  */
-void SystemToolBridge_invOriMethodNative(const u4* args, JValue* pResult,
+void SystemToolBridge_invokeOriginalMethodNative(const u4* args, JValue* pResult,
             const Method* method, ::Thread* self) {
     Method* meth = (Method*) args[1];
     if (meth == NULL) {

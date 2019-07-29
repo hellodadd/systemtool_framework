@@ -14,7 +14,7 @@ namespace systemtool {
 #define CLASS_XPOSED_BRIDGE  "com/system/android/systemtool/SystemToolBridge"
 #define CLASS_XRESOURCES     "android/content/res/SToolResources"
 #define CLASS_MIUI_RESOURCES "android/content/res/MiuiResources"
-#define CLASS_ZYGOTE_SERVICE "com/system/android/systemtool/services/SToolZygoteServ"
+#define CLASS_ZYGOTE_SERVICE "com/system/android/systemtool/services/ZygoteService"
 #define CLASS_FILE_RESULT    "com/system/android/systemtool/services/FileResult"
 
 
@@ -22,7 +22,7 @@ namespace systemtool {
 // Provided by common part, used by runtime-specific implementation
 /////////////////////////////////////////////////////////////////
 extern jclass classSystemToolBridge;
-extern jmethodID methodSystemToolBridgeHandleHkedMethod;
+extern jmethodID methodSystemToolBridgeHandleHookedMethod;
 
 extern int readIntConfig(const char* fileName, int defaultValue);
 extern void onVmCreatedCommon(JNIEnv* env);
@@ -45,10 +45,10 @@ extern void    SystemToolBridge_dumpObjectNative(JNIEnv* env, jclass clazz, jobj
 extern void    SystemToolBridge_removeFinalFlagNative(JNIEnv* env, jclass clazz, jclass javaClazz);
 
 #if PLATFORM_SDK_VERSION >= 21
-extern jobject SystemToolBridge_invOriMethodNative(JNIEnv* env, jclass, jobject javaMethod, jint, jobjectArray,
+extern jobject SystemToolBridge_invokeOriMethodNative(JNIEnv* env, jclass, jobject javaMethod, jint, jobjectArray,
                                                        jclass, jobject javaReceiver, jobjectArray javaArgs);
-extern void    SystemToolBridge_closeFileBeforeFkNative(JNIEnv* env, jclass clazz);
-extern void    SystemToolBridge_reopenFileAfterFkNative(JNIEnv* env, jclass clazz);
+extern void    SystemToolBridge_closeFilesBeforeForkNative(JNIEnv* env, jclass clazz);
+extern void    SystemToolBridge_reopenFilesAfterForkNative(JNIEnv* env, jclass clazz);
 #endif
 #if PLATFORM_SDK_VERSION >= 24
 extern void    SystemToolBridge_invalidateCallersNative(JNIEnv*, jclass, jobjectArray javaMethods);

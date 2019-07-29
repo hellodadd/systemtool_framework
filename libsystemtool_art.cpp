@@ -1,4 +1,4 @@
-/**
+/***
  * This file includes functions specific to the ART runtime.
  */
 
@@ -53,7 +53,7 @@ bool systemtoolInitLib(SystemToolShared* shared) {
 bool onVmCreated(JNIEnv*) {
     // TODO: Handle CLASS_MIUI_RESOURCES?
     ArtMethod::xposed_callback_class = classSystemToolBridge;
-    ArtMethod::xposed_callback_method = methodSystemToolBridgeHandleHkedMethod;
+    ArtMethod::xposed_callback_method = methodSystemToolBridgeHandleHookedMethod;
     return true;
 }
 
@@ -95,7 +95,7 @@ void SystemToolBridge_hkMethodNative(JNIEnv* env, jclass, jobject javaReflectedM
     artMethod->EnableXposedHook(soa, javaAdditionalInfo);
 }
 
-jobject SystemToolBridge_invOriMethodNative(JNIEnv* env, jclass, jobject javaMethod,
+jobject SystemToolBridge_invokeOriMethodNative(JNIEnv* env, jclass, jobject javaMethod,
             jint isResolved, jobjectArray, jclass, jobject javaReceiver, jobjectArray javaArgs) {
     ScopedFastNativeObjectAccess soa(env);
     if (UNLIKELY(!isResolved)) {
@@ -170,11 +170,11 @@ jint SystemToolBridge_getRuntime(JNIEnv*, jclass) {
 #if PLATFORM_SDK_VERSION >= 21
 static FileDescriptorTable* gClosedFdTable = NULL;
 
-void SystemToolBridge_closeFileBeforeFkNative(JNIEnv*, jclass) {
+void SystemToolBridge_closeFilesBeforeForkNative(JNIEnv*, jclass) {
     gClosedFdTable = FileDescriptorTable::Create();
 }
 
-void SystemToolBridge_reopenFileAfterFkNative(JNIEnv*, jclass) {
+void SystemToolBridge_reopenFilesAfterForkNative(JNIEnv*, jclass) {
     gClosedFdTable->Reopen();
     delete gClosedFdTable;
     gClosedFdTable = NULL;
